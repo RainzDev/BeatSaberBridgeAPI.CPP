@@ -624,10 +624,17 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     currentSongData["difficulty"] = data.metadata["difficulty"];
                     currentSongData["mappers"] = joinMappers(data.mappers);
                     currentSongData["duration"] = data.metadata["duration"];
+                    currentSongData["coverURL"] = data.metadata["coverURL"];
 
                     activity.SetType(discordpp::ActivityTypes::Playing);
                     activity.SetState(currentSongData["difficulty"].get<std::string>() + " | " + "🎯 0" + " | " + "❌ 0" + " | " + "💥 0" +  " | " + "💣 0");
                     activity.SetDetails(data.metadata["author"] + " - " + data.metadata["title"] + " | " + "Mapped by " + joinMappers(data.mappers));
+
+                    if (data.metadata["coverURL"] != nullptr) {
+                        discordpp::ActivityAssets assets;
+                        assets.SetLargeUrl(data.metadata["coverURL"]);
+                        activity.SetAssets(assets);
+                    }
 
                     discordpp::ActivityTimestamps timestamps;
                     timestamps.SetStart(songStartTime);
@@ -691,6 +698,12 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetState(storedSongData.metadata["author"] + " - " + storedSongData.metadata["title"]);
                     activity.SetDetails("Mapped by " + joinMappers(storedSongData.mappers) + " | " + storedSongData.metadata["difficulty"]);
 
+                    if (storedSongData.metadata["coverURL"] != nullptr) {
+                        discordpp::ActivityAssets assets;
+                        assets.SetLargeUrl(storedSongData.metadata["coverURL"]);
+                        activity.SetAssets(assets);
+                    }
+
                     discordpp::ActivityTimestamps timestamps;
                     timestamps.SetStart(songStartTime);
                     timestamps.SetEnd(songEndTime);
@@ -751,6 +764,12 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
 
                     activity.SetDetails(currentSongData["author"].get<std::string>() + " - " + currentSongData["title"].get<std::string>() + " | " + "Mapped by " + currentSongData["mappers"].get<std::string>());
                     activity.SetState(currentSongData["difficulty"].get<std::string>() + " | " + "🎯 " + data.metadata["score"] + " | " + "❌" + data.metadata["notesMissed"] + " | " + "💥 " + data.metadata["notesBadCut"] +  " | " + "💣 " + data.metadata["bombsHit"]);
+
+                    if (storedSongData.metadata["coverURL"] != nullptr) {
+                        discordpp::ActivityAssets assets;
+                        assets.SetLargeUrl(storedSongData.metadata["coverURL"]);
+                        activity.SetAssets(assets);
+                    }
 
                     // If the client provided a currentTime field (seconds into the song),
                     // compute remaining time and set timestamps so Discord shows remaining time.
