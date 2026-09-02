@@ -10,14 +10,15 @@ RELEASE_LIB_DIR="$SDK_DIR/lib/release"
 DEBUG_LIB_DIR="$SDK_DIR/lib/debug"
 TMP_DIR="$(mktemp -d)"
 
+ASSET_NAME="${SDK_ASSET_NAME:?SDK_ASSET_NAME is not set}"
+DOWNLOAD_URL="${SDK_DOWNLOAD_URL:?SDK_DOWNLOAD_URL is not set}"
+DOWNLOAD_TOKEN="${SDK_DOWNLOAD_TOKEN:?SDK_DOWNLOAD_TOKEN is not set}"
+
 # SHA-256 of the official Discord Social SDK zip as downloaded from the
 # Discord Developer Portal. Used as both the cache key in CI and to verify
 # the downloaded archive has not been tampered with.
-SDK_SHA256=$(tr -d '[:space:]' < "$(dirname "$0")/sdk-sha256.txt")
-
-ASSET_NAME="DiscordSocialSdk-1.9.15332.zip"
-DOWNLOAD_URL="${SDK_DOWNLOAD_URL:?SDK_DOWNLOAD_URL is not set}"
-DOWNLOAD_TOKEN="${SDK_DOWNLOAD_TOKEN:?SDK_DOWNLOAD_TOKEN is not set}"
+# ASSET_NAME:0:-4 deletes the last 4 characters from the string ".zip"
+SDK_SHA256=$(tr -d '[:space:]' < "$(dirname "$0")/${ASSET_NAME%????}-sha256.txt")
 
 # Parse a GitHub release asset browser URL into an API assets URL.
 # Input:  https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}

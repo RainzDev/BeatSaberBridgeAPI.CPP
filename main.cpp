@@ -194,10 +194,7 @@ void signalHandler(int signum) {
     running.store(false);
 }
 
-// Helper function to get current Unix timestamp
-long long getCurrentTimestamp() {
-    return std::chrono::system_clock::now().time_since_epoch().count() / 1000000000;
-}
+
 
 // Helper function to join mappers
 std::string joinMappers(const std::vector<std::string>& mappers) {
@@ -414,7 +411,7 @@ void httpServer() {
                         }
                     }
 
-                    std::cout << "Self-test passed: update file operations completed successfully\n";
+                    std::cout << "Self-test passed: update file operations completed successfully" << std::endl;
                     std::exit(EXIT_SUCCESS);
                 }
 
@@ -522,7 +519,7 @@ void httpServer() {
 
                 auto body = req->body();
 
-                std::cout << "Body: [" << body << "]\n";
+                std::cout << "Body: [" << body << "]" << std::endl;
 
                 auto json = nlohmann::json::parse(body);
 
@@ -578,6 +575,10 @@ void httpServer() {
     app.run();
 }
 
+time_t songStartTime;
+time_t songEndTime;
+int songLength;
+
 void rpcWorker(std::shared_ptr<discordpp::Client> client) {
     while (running) {
         EventData data;
@@ -610,9 +611,9 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                 if (data.type == "BeatmapInitialized") {
                     inBeatmap = true;
 
-                    long long currentTime = getCurrentTimestamp();
-                    int duration = std::stoi(data.metadata["duration"]);
-                    long long endTime = currentTime + duration;
+                    songStartTime = std::time(nullptr);
+                    songLength = std::stoi(data.metadata["duration"]);
+                    songEndTime = songStartTime + songLength;
 
                     storedSongData = data;
                     totalPausedDuration = 0;
@@ -629,8 +630,8 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetDetails(data.metadata["author"] + " - " + data.metadata["title"] + " | " + "Mapped by " + joinMappers(data.mappers));
 
                     discordpp::ActivityTimestamps timestamps;
-                    timestamps.SetStart(currentTime * 1000);  // Convert to milliseconds
-                    timestamps.SetEnd(endTime * 1000);
+                    timestamps.SetStart(songStartTime);
+                    timestamps.SetEnd(songEndTime);
                     activity.SetTimestamps(timestamps);
 
                     updatePresence(client, activity, "quest", "Meta Quest");
@@ -668,13 +669,15 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     pauseStartTime = std::time(nullptr);
 
                     activity.SetType(discordpp::ActivityTypes::Playing);
-                    activity.SetState("Level paused");
+                    activity.SetState("Level Paused");
 
                     updatePresence(client, activity);
                 }
                 else if (data.type == "BeatmapResumed") {
                     inBeatmap = true;
                     time_t currentTime = std::time(nullptr);
+                    songStartTime += currentTime - pauseStartTime; // Add the amount of time paused onto the start time of the song, in theory will even out the timer
+                    songEndTime = songStartTime + songLength;
 
                     if (pauseStartTime != 0) {
                         totalPausedDuration += (currentTime - pauseStartTime);
@@ -688,14 +691,19 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetState(storedSongData.metadata["author"] + " - " + storedSongData.metadata["title"]);
                     activity.SetDetails("Mapped by " + joinMappers(storedSongData.mappers) + " | " + storedSongData.metadata["difficulty"]);
 
+                    discordpp::ActivityTimestamps timestamps;
+                    timestamps.SetStart(songStartTime);
+                    timestamps.SetEnd(songEndTime);
+                    activity.SetTimestamps(timestamps);
+
                     updatePresence(client, activity);
                 }
                 else if (data.type == "BeatmapRestarted") {
                     inBeatmap = true;
 
-                    long long currentTime = getCurrentTimestamp();
-                    int duration = std::stoi(currentSongData["duration"].get<std::string>());
-                    long long endTime = currentTime + duration;
+                    songStartTime = std::time(nullptr);
+                    songLength = std::stoi(data.metadata["duration"]);
+                    songEndTime = songStartTime + songLength;
 
                     storedSongData = data;
                     totalPausedDuration = 0;
@@ -706,8 +714,8 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetDetails(currentSongData["author"].get<std::string>() + " - " + currentSongData["title"].get<std::string>() + " | " + "Mapped by " + currentSongData["mappers"].get<std::string>());
 
                     discordpp::ActivityTimestamps timestamps;
-                    timestamps.SetStart(currentTime * 1000);  // Convert to milliseconds
-                    timestamps.SetEnd(endTime * 1000);
+                    timestamps.SetStart(songStartTime);
+                    timestamps.SetEnd(songEndTime);
                     activity.SetTimestamps(timestamps);
 
                     updatePresence(client, activity, "quest", "Meta Quest");
@@ -715,7 +723,7 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                 else if (data.type == "LobbyPlayerOnDisconnect" || data.type == "LobbyPlayerOnConnect") {
                     if (partyId.empty()) {
                         // Generate a simple UUID (simplified)
-                        partyId = "party_" + std::to_string(getCurrentTimestamp());
+                        partyId = "party_" + std::to_string(std::time(nullptr));
                     }
 
                     activity.SetType(discordpp::ActivityTypes::Playing);
@@ -747,15 +755,16 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     // If the client provided a currentTime field (seconds into the song),
                     // compute remaining time and set timestamps so Discord shows remaining time.
                     try {
-                        if (!data.metadata["currentTime"].empty() && !storedSongData.metadata["duration"].empty()) {
-                            double current = std::stod(data.metadata["currentTime"]);
-                            double duration = std::stod(storedSongData.metadata["duration"]);
-                            double remaining = duration - current;
-                            if (remaining < 0) remaining = 0;
-                            long long now = getCurrentTimestamp();
+                        if (!data.metadata["currentTime"].empty()) {
+                            double currentTime = std::stod(data.metadata["currentTime"]);
+
+                            songStartTime = std::time(nullptr) - currentTime;
+                            songEndTime = songStartTime + songLength;
+
                             discordpp::ActivityTimestamps timestamps;
-                            timestamps.SetStart(now * 1000);
-                            timestamps.SetEnd(static_cast<long long>((now + static_cast<long long>(std::round(remaining))) * 1000));
+                            timestamps.SetStart(songStartTime);
+                            timestamps.SetEnd(songEndTime);
+                            //timestamps.SetEnd(static_cast<long long>((now + static_cast<long long>(std::round(remaining)))));
                             activity.SetTimestamps(timestamps);
                         }
                     } catch (...) {
@@ -766,9 +775,9 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                 }
                 else if (data.type == "MultiplayerBeatmapInitialized") {
                     partyId = "";
-                    long long currentTime = getCurrentTimestamp();
-                    int duration = std::stoi(data.metadata["duration"]);
-                    long long endTime = currentTime + duration;
+                    songStartTime = std::time(nullptr);
+                    songLength = std::stoi(data.metadata["duration"]);
+                    songEndTime = songStartTime + songLength;
 
                     // Prepare the activity now, but perform the actual update after a short delay
                     activity.SetType(discordpp::ActivityTypes::Playing);
@@ -776,8 +785,8 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetDetails(data.metadata["author"] + " - " + data.metadata["title"] + " | " + joinMappers(data.mappers));
 
                     discordpp::ActivityTimestamps timestamps;
-                    timestamps.SetStart(currentTime * 1000);
-                    timestamps.SetEnd(endTime * 1000);
+                    timestamps.SetStart(songStartTime);
+                    timestamps.SetEnd(songEndTime);
                     activity.SetTimestamps(timestamps);
 
                     // Schedule the presence update asynchronously to avoid blocking the worker
@@ -823,7 +832,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--self-test-server") {
             selfTestServer = true;
         } else if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: " << argv[0] << " [--port <port>] [--app-id <id>] [--self-test] [--self-test-server]\n";
+            std::cout << "Usage: " << argv[0] << " [--port <port>] [--app-id <id>] [--self-test] [--self-test-server]" << std::endl;
             return 0;
         } else {
             std::cerr << "Unknown argument: " << arg << "\n";
@@ -899,7 +908,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::signal(SIGINT, signalHandler);
-    std::cout << "🚀 Initializing Beat Saber Bridge API...\n";
+    std::cout << "🚀 Initializing Beat Saber Bridge API..." << std::endl;
 
     // Create our Discord Client
     auto client = std::make_shared<discordpp::Client>();
@@ -916,7 +925,7 @@ int main(int argc, char* argv[]) {
         std::cout << "🔄 Status changed: " << discordpp::Client::StatusToString(status) << std::endl;
 
         if (status == discordpp::Client::Status::Ready) {
-            std::cout << "✅ Discord client is ready!\n";
+            std::cout << "✅ Discord client is ready!" << std::endl;
         } else if (error != discordpp::Client::Error::None) {
             std::cerr << "❌ Connection error: " << discordpp::Client::ErrorToString(error) << " (detail: " << errorDetail << ")" << std::endl;
         }
@@ -927,7 +936,7 @@ int main(int argc, char* argv[]) {
                 fs::path p = getTokenFilePath();
                 if (fs::exists(p)) {
                     fs::remove(p);
-                    std::cout << "🧹 Removed stale Discord auth token after invalid-session disconnect.\n";
+                    std::cout << "🧹 Removed stale Discord auth token after invalid-session disconnect." << std::endl;
                 }
             } catch (...) {}
 
@@ -946,7 +955,7 @@ int main(int argc, char* argv[]) {
     args.SetScopes(discordpp::Client::GetDefaultPresenceScopes());
     args.SetCodeChallenge(codeVerifier.Challenge());
 
-    std::cout << "🔐 Starting authorization process...\n";
+    std::cout << "🔐 Starting authorization process..." << std::endl;
     // Prepare helpers for token removal and authorization so we can retry if stored token is invalid
     auto removeSavedToken = []() {
         try {
@@ -961,7 +970,7 @@ int main(int argc, char* argv[]) {
                 std::cerr << "❌ Authorization failed: " << result.Error() << std::endl;
                 return;
             }
-            std::cout << "✅ Authorization successful! Getting access token...\n";
+            std::cout << "✅ Authorization successful! Getting access token..." << std::endl;
 
             // Exchange auth code for access token
             client->GetToken(applicationId, code, codeVerifier.Verifier(), redirectUri,
@@ -979,11 +988,11 @@ int main(int argc, char* argv[]) {
                     // Save token to disk for future runs
                     saveAuthToken(accessToken, refreshToken, expiresIn);
 
-                    std::cout << "🔓 Access token received! Establishing connection...\n";
+                    std::cout << "🔓 Access token received! Establishing connection..." << std::endl;
                     // Next Step: Update the token and connect
                     client->UpdateToken(discordpp::AuthorizationTokenType::Bearer, accessToken, [client, &doAuthorize](discordpp::ClientResult updateResult) {
                         if (updateResult.Successful()) {
-                            std::cout << "🔑 Token updated, connecting to Discord...\n";
+                            std::cout << "🔑 Token updated, connecting to Discord..." << std::endl;
                             client->Connect();
                         } else {
                             std::cerr << "❌ Failed to update token after GetToken: " << updateResult.Error() << std::endl;
@@ -1001,10 +1010,10 @@ int main(int argc, char* argv[]) {
         std::string savedAccess, savedRefresh;
         int32_t savedExpires = 0;
         if (loadAuthToken(savedAccess, savedRefresh, savedExpires)) {
-            std::cout << "🔐 Loaded saved access token, attempting to use it...\n";
+            std::cout << "🔐 Loaded saved access token, attempting to use it..." << std::endl;
             client->UpdateToken(discordpp::AuthorizationTokenType::Bearer, savedAccess, [client, &doAuthorize](discordpp::ClientResult result) {
                 if (result.Successful()) {
-                    std::cout << "🔑 Token updated from disk, connecting to Discord...\n";
+                    std::cout << "🔑 Token updated from disk, connecting to Discord..." << std::endl;
                     client->Connect();
                 } else {
                     std::cerr << "❌ Failed to update token from disk: " << result.Error() << std::endl;
@@ -1041,7 +1050,7 @@ int main(int argc, char* argv[]) {
     });
     discordThread.detach();
 
-    std::cout << "HTTP Server listening on http://" << (selfTest ? "127.0.0.1" : "0.0.0.0") << ":" << httpPort << "\n";
+    std::cout << "HTTP Server listening on http://" << (selfTest ? "127.0.0.1" : "0.0.0.0") << ":" << httpPort << std::endl;
 
     // Run HTTP server in the main thread (blocking). This replaces the previous
     // threaded server approach and leverages drogon's async IO internally.

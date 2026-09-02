@@ -68,6 +68,7 @@ jobs:
         if: steps.cache-build.outputs.cache-hit != 'true' && steps.cache-sdk.outputs.cache-hit != 'true'
         shell: bash
         env:
+          SDK_ASSET_NAME: ${{ vars.SDK_ASSET_NAME }}
           SDK_DOWNLOAD_URL: ${{ vars.SDK_DOWNLOAD_URL }}
           SDK_DOWNLOAD_TOKEN: ${{ secrets.SDK_DOWNLOAD_TOKEN }}
         run: |
