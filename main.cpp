@@ -630,7 +630,7 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetState(currentSongData["difficulty"].get<std::string>() + " | " + "🎯 0" + " | " + "❌ 0" + " | " + "💥 0" +  " | " + "💣 0");
                     activity.SetDetails(data.metadata["author"] + " - " + data.metadata["title"] + " | " + "Mapped by " + joinMappers(data.mappers));
 
-                    if (!data.metadata["coverURL"].is_null()) {
+                    if (data.metadata.count("coverURL") > 0 && !data.metadata["coverURL"].empty()) {
                         discordpp::ActivityAssets assets;
                         assets.SetLargeUrl(data.metadata["coverURL"]);
                         activity.SetAssets(assets);
@@ -698,7 +698,9 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetState(storedSongData.metadata["author"] + " - " + storedSongData.metadata["title"]);
                     activity.SetDetails("Mapped by " + joinMappers(storedSongData.mappers) + " | " + storedSongData.metadata["difficulty"]);
 
-                    if (!storedSongData.metadata["coverURL"].is_null()) {
+                    auto it = storedSongData.metadata.find("coverURL");
+
+                    if (it != storedSongData.metadata.end() && !it->second.empty()) {
                         discordpp::ActivityAssets assets;
                         assets.SetLargeUrl(storedSongData.metadata["coverURL"]);
                         activity.SetAssets(assets);
@@ -725,6 +727,13 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetType(discordpp::ActivityTypes::Playing);
                     activity.SetState(currentSongData["difficulty"].get<std::string>() + " | " + "🎯 0" + " | " + "❌ 0" + " | " + "💥 0" +  " | " + "💣 0");
                     activity.SetDetails(currentSongData["author"].get<std::string>() + " - " + currentSongData["title"].get<std::string>() + " | " + "Mapped by " + currentSongData["mappers"].get<std::string>());
+
+                    auto it = storedSongData.metadata.find("coverURL");
+                    if (it != storedSongData.metadata.end() && !it->second.empty()) {
+                        discordpp::ActivityAssets assets;
+                        assets.SetLargeUrl(storedSongData.metadata["coverURL"]);
+                        activity.SetAssets(assets);
+                    }
 
                     discordpp::ActivityTimestamps timestamps;
                     timestamps.SetStart(songStartTime);
@@ -765,7 +774,8 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetDetails(currentSongData["author"].get<std::string>() + " - " + currentSongData["title"].get<std::string>() + " | " + "Mapped by " + currentSongData["mappers"].get<std::string>());
                     activity.SetState(currentSongData["difficulty"].get<std::string>() + " | " + "🎯 " + data.metadata["score"] + " | " + "❌" + data.metadata["notesMissed"] + " | " + "💥 " + data.metadata["notesBadCut"] +  " | " + "💣 " + data.metadata["bombsHit"]);
 
-                    if (!storedSongData.metadata["coverURL"].is_null()) {
+                    auto it = storedSongData.metadata.find("coverURL");
+                    if (it != storedSongData.metadata.end() && !it->second.empty()) {
                         discordpp::ActivityAssets assets;
                         assets.SetLargeUrl(storedSongData.metadata["coverURL"]);
                         activity.SetAssets(assets);
