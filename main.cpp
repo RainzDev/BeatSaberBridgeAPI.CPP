@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdlib>
 #include <fstream>
 #include <ostream>
@@ -215,10 +216,12 @@ std::string joinMappers(const std::vector<std::string>& mappers) {
 void updatePresence(std::shared_ptr<discordpp::Client> client,
                     discordpp::Activity activity,
                     const std::string& smallImage = "",
-                    const std::string& smallText = "") {
+                    const std::string& smallText = "",
+                    const std::string& largeImageUrl = "") {
     if (!smallImage.empty()) {
         discordpp::Activity withAssets = activity;
         discordpp::ActivityAssets assets;
+        if (!largeImageUrl.empty()) assets.SetLargeUrl(largeImageUrl);
         assets.SetSmallImage(smallImage);
         if (!smallText.empty()) assets.SetSmallText(smallText);
         withAssets.SetAssets(assets);
@@ -241,7 +244,11 @@ void updatePresence(std::shared_ptr<discordpp::Client> client,
             }
         });
     } else {
-        client->UpdateRichPresence(activity, [](auto result) {
+        discordpp::Activity withAssets = activity;
+        discordpp::ActivityAssets assets;
+        withAssets.SetAssets(assets);
+        if (!largeImageUrl.empty()) assets.SetLargeUrl(largeImageUrl);
+        client->UpdateRichPresence(withAssets, [](auto result) {
             if (!result.Successful())
                 std::cerr << "❌ Failed to update rich presence: " << result.Error() << std::endl;
         });
@@ -630,18 +637,12 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetState(currentSongData["difficulty"].get<std::string>() + " | " + "🎯 0" + " | " + "❌ 0" + " | " + "💥 0" +  " | " + "💣 0");
                     activity.SetDetails(data.metadata["author"] + " - " + data.metadata["title"] + " | " + "Mapped by " + joinMappers(data.mappers));
 
-                    if (data.metadata.count("coverURL") > 0 && !data.metadata["coverURL"].empty()) {
-                        discordpp::ActivityAssets assets;
-                        assets.SetLargeUrl(data.metadata["coverURL"]);
-                        activity.SetAssets(assets);
-                    }
-
                     discordpp::ActivityTimestamps timestamps;
                     timestamps.SetStart(songStartTime);
                     timestamps.SetEnd(songEndTime);
                     activity.SetTimestamps(timestamps);
 
-                    updatePresence(client, activity, "quest", "Meta Quest");
+                    updatePresence(client, activity, "quest", "Meta Quest", data.metadata["coverURL"]);
                 }
                 else if (data.type == "MainMenuInitialized") {
                     activity.SetType(discordpp::ActivityTypes::Playing);
@@ -698,20 +699,12 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetState(storedSongData.metadata["author"] + " - " + storedSongData.metadata["title"]);
                     activity.SetDetails("Mapped by " + joinMappers(storedSongData.mappers) + " | " + storedSongData.metadata["difficulty"]);
 
-                    auto it = storedSongData.metadata.find("coverURL");
-
-                    if (it != storedSongData.metadata.end() && !it->second.empty()) {
-                        discordpp::ActivityAssets assets;
-                        assets.SetLargeUrl(storedSongData.metadata["coverURL"]);
-                        activity.SetAssets(assets);
-                    }
-
                     discordpp::ActivityTimestamps timestamps;
                     timestamps.SetStart(songStartTime);
                     timestamps.SetEnd(songEndTime);
                     activity.SetTimestamps(timestamps);
 
-                    updatePresence(client, activity);
+                    updatePresence(client, activity, "quest", "Meta Quest", storedSongData.metadata["coverURL"]);
                 }
                 else if (data.type == "BeatmapRestarted") {
                     inBeatmap = true;
@@ -728,19 +721,12 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetState(currentSongData["difficulty"].get<std::string>() + " | " + "🎯 0" + " | " + "❌ 0" + " | " + "💥 0" +  " | " + "💣 0");
                     activity.SetDetails(currentSongData["author"].get<std::string>() + " - " + currentSongData["title"].get<std::string>() + " | " + "Mapped by " + currentSongData["mappers"].get<std::string>());
 
-                    auto it = storedSongData.metadata.find("coverURL");
-                    if (it != storedSongData.metadata.end() && !it->second.empty()) {
-                        discordpp::ActivityAssets assets;
-                        assets.SetLargeUrl(storedSongData.metadata["coverURL"]);
-                        activity.SetAssets(assets);
-                    }
-
                     discordpp::ActivityTimestamps timestamps;
                     timestamps.SetStart(songStartTime);
                     timestamps.SetEnd(songEndTime);
                     activity.SetTimestamps(timestamps);
 
-                    updatePresence(client, activity, "quest", "Meta Quest");
+                    updatePresence(client, activity, "quest", "Meta Quest", storedSongData.metadata["coverURL"]);
                 }
                 else if (data.type == "LobbyPlayerOnDisconnect" || data.type == "LobbyPlayerOnConnect") {
                     if (partyId.empty()) {
@@ -774,13 +760,6 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetDetails(currentSongData["author"].get<std::string>() + " - " + currentSongData["title"].get<std::string>() + " | " + "Mapped by " + currentSongData["mappers"].get<std::string>());
                     activity.SetState(currentSongData["difficulty"].get<std::string>() + " | " + "🎯 " + data.metadata["score"] + " | " + "❌" + data.metadata["notesMissed"] + " | " + "💥 " + data.metadata["notesBadCut"] +  " | " + "💣 " + data.metadata["bombsHit"]);
 
-                    auto it = storedSongData.metadata.find("coverURL");
-                    if (it != storedSongData.metadata.end() && !it->second.empty()) {
-                        discordpp::ActivityAssets assets;
-                        assets.SetLargeUrl(storedSongData.metadata["coverURL"]);
-                        activity.SetAssets(assets);
-                    }
-
                     // If the client provided a currentTime field (seconds into the song),
                     // compute remaining time and set timestamps so Discord shows remaining time.
                     try {
@@ -800,7 +779,7 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                         // If parsing fails, just skip timestamps update.
                     }
 
-                    updatePresence(client, activity, "quest", "Meta Quest");
+                    updatePresence(client, activity, "quest", "Meta Quest", storedSongData.metadata["coverURL"]);
                 }
                 else if (data.type == "MultiplayerBeatmapInitialized") {
                     partyId = "";
