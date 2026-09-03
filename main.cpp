@@ -222,20 +222,23 @@ void updatePresence(std::shared_ptr<discordpp::Client> client,
         discordpp::Activity withAssets = activity;
         discordpp::ActivityAssets assets;
         std::cout << largeImageUrl << std::endl;
-        if (!largeImageUrl.empty()) assets.SetLargeUrl(largeImageUrl);
+        if (largeImageUrl != "") assets.SetLargeUrl(largeImageUrl);
         assets.SetSmallImage(smallImage);
         if (!smallText.empty()) assets.SetSmallText(smallText);
         withAssets.SetAssets(assets);
 
         // activity (no assets) is captured for the fallback retry
-        client->UpdateRichPresence(withAssets, [client, activity, smallImage](auto result) {
+        client->UpdateRichPresence(withAssets, [client, activity, smallImage, largeImageUrl](auto result) {
             if (!result.Successful()) {
                 std::string err = result.Error();
                 if (err.find("asset") != std::string::npos) {
                     std::cerr << "⚠️  Asset '" << smallImage << "' not found in your Discord application "
                                  "(upload it under Rich Presence > Art Assets in the Developer Portal). "
                                  "Retrying without assets.\n";
-                    client->UpdateRichPresence(activity, [](auto r) {
+                    discordpp::Activity withoutAssets = activity;
+                    discordpp::ActivityAssets Largeassets;
+                    if (largeImageUrl != "") Largeassets.SetLargeUrl(largeImageUrl);
+                    client->UpdateRichPresence(withoutAssets, [](auto r) {
                         if (!r.Successful())
                             std::cerr << "❌ Failed to update rich presence: " << r.Error() << std::endl;
                     });
@@ -248,7 +251,7 @@ void updatePresence(std::shared_ptr<discordpp::Client> client,
         discordpp::Activity withAssets = activity;
         discordpp::ActivityAssets assets;
         withAssets.SetAssets(assets);
-        if (!largeImageUrl.empty()) assets.SetLargeUrl(largeImageUrl);
+        if (largeImageUrl != "") assets.SetLargeUrl(largeImageUrl);
         client->UpdateRichPresence(withAssets, [](auto result) {
             if (!result.Successful())
                 std::cerr << "❌ Failed to update rich presence: " << result.Error() << std::endl;
