@@ -221,6 +221,7 @@ void updatePresence(std::shared_ptr<discordpp::Client> client,
     if (!smallImage.empty()) {
         discordpp::Activity withAssets = activity;
         discordpp::ActivityAssets assets;
+        std::cout << largeImageUrl << std::endl;
         if (!largeImageUrl.empty()) assets.SetLargeUrl(largeImageUrl);
         assets.SetSmallImage(smallImage);
         if (!smallText.empty()) assets.SetSmallText(smallText);
