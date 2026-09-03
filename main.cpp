@@ -222,7 +222,7 @@ void updatePresence(std::shared_ptr<discordpp::Client> client,
         discordpp::Activity withAssets = activity;
         discordpp::ActivityAssets assets;
         std::cout << largeImageUrl << std::endl;
-        if (largeImageUrl != "") assets.SetLargeUrl(largeImageUrl);
+        if (largeImageUrl != "") assets.SetLargeImage(largeImageUrl);
         assets.SetSmallImage(smallImage);
         if (!smallText.empty()) assets.SetSmallText(smallText);
         withAssets.SetAssets(assets);
@@ -237,7 +237,8 @@ void updatePresence(std::shared_ptr<discordpp::Client> client,
                                  "Retrying without assets.\n";
                     discordpp::Activity withoutAssets = activity;
                     discordpp::ActivityAssets Largeassets;
-                    if (largeImageUrl != "") Largeassets.SetLargeUrl(largeImageUrl);
+                    if (largeImageUrl != "") Largeassets.SetLargeImage(largeImageUrl);
+                    withoutAssets.SetAssets(Largeassets);
                     client->UpdateRichPresence(withoutAssets, [](auto r) {
                         if (!r.Successful())
                             std::cerr << "❌ Failed to update rich presence: " << r.Error() << std::endl;
@@ -251,7 +252,7 @@ void updatePresence(std::shared_ptr<discordpp::Client> client,
         discordpp::Activity withAssets = activity;
         discordpp::ActivityAssets assets;
         withAssets.SetAssets(assets);
-        if (largeImageUrl != "") assets.SetLargeUrl(largeImageUrl);
+        if (largeImageUrl != "") assets.SetLargeImage(largeImageUrl);
         client->UpdateRichPresence(withAssets, [](auto result) {
             if (!result.Successful())
                 std::cerr << "❌ Failed to update rich presence: " << result.Error() << std::endl;
