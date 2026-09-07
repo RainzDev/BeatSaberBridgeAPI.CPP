@@ -675,7 +675,7 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetState("Status: Failed | " + storedSongData.metadata["difficulty"]);
                     activity.SetDetails(storedSongData.metadata["author"] + " - " + storedSongData.metadata["title"] + " | " + joinMappers(storedSongData.mappers));
 
-                    updatePresence(client, activity, "quest", "Meta Quest");
+                    updatePresence(client, activity, "quest", "Meta Quest", storedSongData.metadata["coverURL"]);
                 }
                 else if (data.type == "BeatmapPaused") {
                     inBeatmap = false;
@@ -683,8 +683,9 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
 
                     activity.SetType(discordpp::ActivityTypes::Playing);
                     activity.SetState("Level Paused");
+                    activity.SetDetails(currentSongData["author"].get<std::string>() + " - " + currentSongData["title"].get<std::string>() + " | " + "Mapped by " + currentSongData["mappers"].get<std::string>());
 
-                    updatePresence(client, activity);
+                    updatePresence(client, activity, "quest", "Meta Quest", storedSongData.metadata["coverURL"]);
                 }
                 else if (data.type == "BeatmapResumed") {
                     inBeatmap = true;
