@@ -251,8 +251,8 @@ void updatePresence(std::shared_ptr<discordpp::Client> client,
     } else {
         discordpp::Activity withAssets = activity;
         discordpp::ActivityAssets assets;
-        withAssets.SetAssets(assets);
         if (largeImageUrl != "") assets.SetLargeImage(largeImageUrl);
+        withAssets.SetAssets(assets);
         client->UpdateRichPresence(withAssets, [](auto result) {
             if (!result.Successful())
                 std::cerr << "❌ Failed to update rich presence: " << result.Error() << std::endl;
@@ -804,7 +804,7 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetTimestamps(timestamps);
 
                     // Schedule the presence update asynchronously to avoid blocking the worker
-                    std::thread([client, activity]() mutable {
+                    std::thread([client, activity, storedSongData]() mutable {
                         std::this_thread::sleep_for(std::chrono::seconds(5));
                         updatePresence(client, activity, "quest", "Meta Quest", storedSongData.metadata["coverURL"]);
                     }).detach();
