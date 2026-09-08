@@ -804,7 +804,7 @@ void rpcWorker(std::shared_ptr<discordpp::Client> client) {
                     activity.SetTimestamps(timestamps);
 
                     // Schedule the presence update asynchronously to avoid blocking the worker
-                    std::thread([client, activity, storedSongData]() mutable {
+                    std::thread([client, activity]() mutable {
                         std::this_thread::sleep_for(std::chrono::seconds(5));
                         updatePresence(client, activity, "quest", "Meta Quest", storedSongData.metadata["coverURL"]);
                     }).detach();
